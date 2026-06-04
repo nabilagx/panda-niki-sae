@@ -92,7 +92,7 @@
 
         const Icons = {
             PandaLogo: ({ className = "w-8 h-8" }) => {
-                const [src, setSrc] = useState("https://i.imgur.com/KUScD5U.png");
+                const [src, setSrc] = useState("https://i.imgur.com/wyyorgB.png");
                 const [fallback, setFallback] = useState(false);
 
                 if (fallback) {
@@ -114,8 +114,8 @@
                         alt="PANDA Logo" 
                         onError={() => {
                             // If png fails, try jpg before falling back to SVG
-                            if (src === "https://i.imgur.com/KUScD5U.png") {
-                                setSrc("https://i.imgur.com/KUScD5U.jpg");
+                            if (src === "https://i.imgur.com/wyyorgB.png") {
+                                setSrc("https://i.imgur.com/wyyorgB.jpg");
                             } else {
                                 setFallback(true);
                             }
@@ -391,7 +391,7 @@
                                     >
                                         Konfirmasi Respon
                                     </button>
-                                </div>
+                                end</div>
                             </div>
                         </div>
                     )}
@@ -1057,33 +1057,34 @@
                                     {/* Team Cards */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                                         <div className="border border-border-gray bg-bg-main rounded-3xl p-8 text-center hover:shadow-soft-premium transition duration-300">
-                                            <div className="w-24 h-24 bg-gradient-to-tr from-primary-teal to-emerald-accent rounded-full mx-auto mb-6 flex items-center justify-center text-white text-3xl font-extrabold shadow-sm">
-                                                NC
+                                            <div className="w-24 h-24 rounded-full mx-auto mb-6 overflow-hidden shadow-sm border border-border-gray flex items-center justify-center bg-gray-100">
+                                                <img className="w-full h-full object-cover" src="https://i.imgur.com/OyllGJq.png" alt="Foto Nabila Choirunisa" />
                                             </div>
                                             <h3 className="text-lg font-bold text-dark-text">Nabila Choirunisa</h3>
-                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">Founder & Chief Technology Officer</span>
+                                            {}
+                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">CEO & CTO</span>
                                             <p className="text-xs text-secondary-text leading-relaxed">
                                                 Memformulasikan arsitektur sistem cloud IoT, algoritma AI pendeteksi status ambient, serta pengembangan perangkat lunak portal medis terpusat.
                                             </p>
                                         </div>
 
                                         <div className="border border-border-gray bg-bg-main rounded-3xl p-8 text-center hover:shadow-soft-premium transition duration-300">
-                                            <div className="w-24 h-24 bg-gradient-to-tr from-primary-teal to-emerald-accent rounded-full mx-auto mb-6 flex items-center justify-center text-white text-3xl font-extrabold shadow-sm">
-                                                FS
+                                            <div className="w-24 h-24 rounded-full mx-auto mb-6 overflow-hidden shadow-sm border border-border-gray flex items-center justify-center bg-gray-100">
+                                                <img className="w-full h-full object-cover" src="https://i.imgur.com/KGwHQQp.png" alt="Foto Febriani M. Sitanggang" />
                                             </div>
                                             <h3 className="text-lg font-bold text-dark-text">Febriani M. Sitanggang</h3>
-                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">Co-Founder & Chief Financial Officer</span>
+                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">CFO</span>
                                             <p className="text-xs text-secondary-text leading-relaxed">
                                                 Merancang skema model bisnis komersial Health-as-a-Service, proyeksi investasi, analisis pengadaan hardware, dan efisiensi pengeluaran.
                                             </p>
                                         </div>
 
                                         <div className="border border-border-gray bg-bg-main rounded-3xl p-8 text-center hover:shadow-soft-premium transition duration-300">
-                                            <div className="w-24 h-24 bg-gradient-to-tr from-primary-teal to-emerald-accent rounded-full mx-auto mb-6 flex items-center justify-center text-white text-3xl font-extrabold shadow-sm">
-                                                HS
+                                            <div className="w-24 h-24 rounded-full mx-auto mb-6 overflow-hidden shadow-sm border border-border-gray flex items-center justify-center bg-gray-100">
+                                                <img className="w-full h-full object-cover" src="https://i.imgur.com/GkgKuBM.png" alt="Foto Halfi Syahdan Basith" />
                                             </div>
                                             <h3 className="text-lg font-bold text-dark-text">Halfi Syahdan Basith</h3>
-                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">Co-Founder & Chief Marketing Officer</span>
+                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">CMO</span>
                                             <p className="text-xs text-secondary-text leading-relaxed">
                                                 Mengkoordinasi riset kebutuhan pasien klinis di lapangan, validasi pangsa pasar layanan kesehatan mandiri, dan kemitraan dengan klinik stroke nasional.
                                             </p>
