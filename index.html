@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PANDA - Patient Ambient Notification & Danger Analysis</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM UMD -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel compiler for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'soft-mint': '#ECFDF5',
+                        'deep-teal': '#064E3B',
+                        'primary-teal': '#0F766E',
+                        'emerald-accent': '#059669',
+                        'dark-text': '#111827',
+                        'secondary-text': '#64748B',
+                        'border-gray': '#E5E7EB',
+                        'warning-amber': '#F59E0B',
+                        'danger-red': '#EF4444',
+                        'bg-main': '#F8FAFC'
+                    },
+                    boxShadow: {
+                        'soft-premium': '0 4px 30px rgba(0, 0, 0, 0.02)',
+                        'hover-premium': '0 10px 40px rgba(15, 118, 110, 0.06)',
+                        'ios-alert': '0 12px 36px rgba(0, 0, 0, 0.12)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8FAFC;
+        }
+        /* Custom styled modern scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #F1F5F9;
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+        /* Pulse Animation for Live Telemetry */
+        @keyframes radar-pulse {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.5; }
+        }
+        .animate-radar {
+            animation: radar-pulse 2s infinite ease-in-out;
+        }
+        /* Smooth fade-in transition */
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="text-dark-text antialiased">
+
+    <div id="root"></div>
+
+    <!-- React Application Logic -->
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icons = {
+            PandaLogo: ({ className = "w-8 h-8" }) => {
+                const [src, setSrc] = useState("https://i.imgur.com/KUScD5U.png");
+                const [fallback, setFallback] = useState(false);
+
+                if (fallback) {
+                    return (
+                        <svg className={`${className} text-primary-teal`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" />
+                            <path d="M8 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" />
+                            <path d="M16 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" />
+                            <path d="M12 14a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H13a1 1 0 0 1-1-1z" />
+                            <path d="M7 16c2.5 3 7.5 3 10 0" />
+                        </svg>
+                    );
+                }
+
+                return (
+                    <img 
+                        src={src} 
+                        className={`${className} object-contain`} 
+                        alt="PANDA Logo" 
+                        onError={() => {
+                            // If png fails, try jpg before falling back to SVG
+                            if (src === "https://i.imgur.com/KUScD5U.png") {
+                                setSrc("https://i.imgur.com/KUScD5U.jpg");
+                            } else {
+                                setFallback(true);
+                            }
+                        }}
+                    />
+                );
+            },
+            Shield: () => (
+                <svg className="w-6 h-6 text-primary-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+            ),
+            Activity: () => (
+                <svg className="w-6 h-6 text-primary-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            ),
+            Users: () => (
+                <svg className="w-6 h-6 text-primary-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            ),
+            Bell: () => (
+                <svg className="w-6 h-6 text-primary-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+            ),
+            Chart: () => (
+                <svg className="w-6 h-6 text-primary-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+            ),
+            Heart: () => (
+                <svg className="w-6 h-6 text-primary-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+            ),
+            AlertCircle: ({ className = "w-5 h-5" }) => (
+                <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            ),
+            ChevronRight: () => (
+                <svg className="w-5 h-5 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+            ),
+            Close: () => (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l18 18" />
+                </svg>
+            ),
+            UserCircle: ({ className = "w-6 h-6" }) => (
+                <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            ),
+            WhatsApp: () => (
+                <svg className="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.455 5.703 1.458h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+            ),
+            ExternalLink: () => (
+                <svg className="w-4 h-4 text-secondary-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+            )
+        };
+
+        const PATIENTS_DATA = {
+            siti: {
+                id: 'siti',
+                name: 'Ibu Siti Aminah',
+                age: '68 Tahun',
+                diagnosa: 'Pasca-Stroke Iskemik (Fase Pemulihan)',
+                baselineTemp: 26.4,
+                baselineHumid: 58,
+                caregiverName: 'Budi Santoso',
+                alamat: 'Jl. Mastrip No. 42, Jember',
+                meds: ['Clopidogrel 75mg (1x1)', 'Atorvastatin 20mg (0-0-1)', 'B-Complex (1x1)']
+            },
+            haryono: {
+                id: 'haryono',
+                name: 'Bpk. Haryono Sukandar',
+                age: '72 Tahun',
+                diagnosa: 'Pasca-Stroke Hemoragik (Sisi Kiri Lemah)',
+                baselineTemp: 25.8,
+                baselineHumid: 54,
+                caregiverName: 'Siti Rahma',
+                alamat: 'Perum Kaliurang Blok C-12, Jember',
+                meds: ['Amlodipine 5mg (1x1)', 'Citicoline 500mg (2x1)', 'Neurobion (1x1)']
+            }
+        };
+
+        // Fungsi parser untuk mengonversi format teks WhatsApp (*teks*) menjadi bold HTML asli tanpa tanda bintang
+        const formatWhatsAppMessage = (text) => {
+            if (!text) return '';
+            const parts = text.split('*');
+            return parts.map((part, index) => {
+                if (index % 2 === 1) {
+                    return <strong key={index} className="font-extrabold text-emerald-950">{part}</strong>;
+                }
+                return part;
+            });
+        };
+
+        function App() {
+            const [view, setView] = useState('landing'); // 'landing' or 'demo'
+            const [activePatient, setActivePatient] = useState('siti');
+            const [userSession, setUserSession] = useState(null); // { name: 'dr. Budi Santoso', role: 'Klinisi Utama' } or null
+            const [modalType, setModalType] = useState(null); // 'login', 'register', 'contact' or null
+            const [toastMessage, setToastMessage] = useState(null);
+
+            // Live ambient telemetry state (starts at patient baseline)
+            const [suhu, setSuhu] = useState(PATIENTS_DATA[activePatient].baselineTemp);
+            const [kelembaban, setKelembaban] = useState(PATIENTS_DATA[activePatient].baselineHumid);
+            const [gerakan, setGerakan] = useState('Normal'); // 'Normal', 'Gelisah / Aktif', 'Jatuh / Diam Lama'
+            const [cahaya, setCahaya] = useState('Optimal'); // 'Optimal', 'Terlalu Terang', 'Gelap Gulita'
+            
+            // Floating WhatsApp Alert simulator visibility
+            const [showWhatsAppAlert, setShowWhatsAppAlert] = useState(false);
+            const [whatsAppMessage, setWhatsAppMessage] = useState('');
+
+            // Historical chart data array (simulates time-series updates)
+            const [historicalTemp, setHistoricalTemp] = useState([26.1, 26.2, 26.3, 26.5, 26.4, 26.4]);
+
+            // Form inputs
+            const [loginEmail, setLoginEmail] = useState('');
+            const [loginPassword, setLoginPassword] = useState('');
+
+            // Dynamic updates when patient switches
+            useEffect(() => {
+                setSuhu(PATIENTS_DATA[activePatient].baselineTemp);
+                setKelembaban(PATIENTS_DATA[activePatient].baselineHumid);
+                setGerakan('Normal');
+                setCahaya('Optimal');
+                setHistoricalTemp([
+                    PATIENTS_DATA[activePatient].baselineTemp - 0.3,
+                    PATIENTS_DATA[activePatient].baselineTemp - 0.2,
+                    PATIENTS_DATA[activePatient].baselineTemp - 0.1,
+                    PATIENTS_DATA[activePatient].baselineTemp + 0.1,
+                    PATIENTS_DATA[activePatient].baselineTemp,
+                    PATIENTS_DATA[activePatient].baselineTemp
+                ]);
+            }, [activePatient]);
+
+            // Simulates gentle environment fluctuations every 4 seconds unless controlled manually
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setSuhu(prev => {
+                        const fluctuation = (Math.random() - 0.5) * 0.15;
+                        const nextVal = parseFloat((prev + fluctuation).toFixed(1));
+                        // Keep within reasonable ambient boundaries
+                        if (nextVal > 18 && nextVal < 36) {
+                            // Update history line chart
+                            setHistoricalTemp(hist => [...hist.slice(1), nextVal]);
+                            return nextVal;
+                        }
+                        return prev;
+                    });
+                    setKelembaban(prev => {
+                        const fluctuation = Math.floor((Math.random() - 0.5) * 2);
+                        const nextVal = prev + fluctuation;
+                        if (nextVal > 30 && nextVal < 85) return nextVal;
+                        return prev;
+                    });
+                }, 4000);
+
+                return () => clearInterval(interval);
+            }, []);
+
+            // Auto-trigger WhatsApp simulator on Danger or Restless events
+            useEffect(() => {
+                const statusInfo = deriveStatus();
+                if (statusInfo.status === 'BAHAYA') {
+                    setWhatsAppMessage(`⚠️ *EMERGENCY NOTIFICATION* - PANDA Platform\n\nPasien *${PATIENTS_DATA[activePatient].name}* terdeteksi dalam status *KRITIS (BAHAYA)*.\n\nSuhu: ${suhu}°C\nGerakan: ${gerakan}\n\n*Rekomendasi*: Segera lakukan pengecekan langsung dan hubungi ambulans jika tidak responsif.`);
+                    setShowWhatsAppAlert(true);
+                } else if (statusInfo.status === 'GELISAH') {
+                    setWhatsAppMessage(`🔔 *PANDA ALERT* - Status: *GELISAH*\n\nPasien *${PATIENTS_DATA[activePatient].name}* terdeteksi tidak nyaman.\n\nSuhu: ${suhu}°C\nPencahayaan: ${cahaya}\n\n*Rekomendasi*: Sesuaikan suhu pendingin ruangan atau redupkan cahaya lampu.`);
+                    setShowWhatsAppAlert(true);
+                } else {
+                    setShowWhatsAppAlert(false);
+                }
+            }, [suhu, kelembaban, gerakan, cahaya, activePatient]);
+
+            const triggerToast = (msg) => {
+                setToastMessage(msg);
+                setTimeout(() => setToastMessage(null), 4000);
+            };
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (loginEmail && loginPassword) {
+                    setUserSession({
+                        name: 'dr. Budi Santoso, Sp.S',
+                        role: 'Kepala Klinis Spesialis Saraf'
+                    });
+                    setModalType(null);
+                    triggerToast('Selamat Datang, dr. Budi Santoso. Sesi Anda telah aktif.');
+                } else {
+                    triggerToast('Silakan isi email dan kata sandi dengan benar.');
+                }
+            };
+
+            const handleLogout = () => {
+                setUserSession(null);
+                triggerToast('Sesi Anda telah berhasil dinonaktifkan.');
+            };
+
+            const deriveStatus = () => {
+                if (gerakan === 'Jatuh / Diam Lama' || suhu >= 33 || suhu <= 19) {
+                    return {
+                        status: 'BAHAYA',
+                        desc: 'Segera tangani! Terjadi anomali kritis berupa kemungkinan pasien jatuh/kehilangan respon gerak, atau paparan suhu ruangan ekstrem.',
+                        color: 'text-danger-red border-danger-red bg-red-50/70',
+                        badgeColor: 'bg-danger-red text-white'
+                    };
+                }
+                if (gerakan === 'Gelisah / Aktif' || suhu >= 29 || kelembaban >= 72 || kelembaban <= 38 || cahaya !== 'Optimal') {
+                    return {
+                        status: 'GELISAH',
+                        desc: 'Tingkat kenyamanan pasien menurun. Ruangan terlalu panas, terlalu kering/lembab, atau pola aktivitas pasien mengindikasikan kegelisahan.',
+                        color: 'text-warning-amber border-warning-amber bg-amber-50/70',
+                        badgeColor: 'bg-warning-amber text-dark-text'
+                    };
+                }
+                return {
+                    status: 'AMAN',
+                    desc: 'Seluruh parameter ambient dan sensor gerak mikro berada dalam batas toleransi medis yang optimal. Pasien terpantau istirahat dengan baik.',
+                    color: 'text-emerald-accent border-emerald-accent bg-emerald-50/70',
+                    badgeColor: 'bg-emerald-accent text-white'
+                };
+            };
+
+            const currentStatus = deriveStatus();
+
+            return (
+                <div className="min-h-screen bg-bg-main flex flex-col justify-between overflow-x-hidden relative">
+                    
+                    {/* TOAST NOTIFICATION CONTAINER */}
+                    {toastMessage && (
+                        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-gray-800 transition-all duration-300 animate-bounce max-w-sm">
+                            <Icons.AlertCircle className="w-5 h-5 text-emerald-accent shrink-0" />
+                            <span className="text-sm font-medium">{toastMessage}</span>
+                        </div>
+                    )}
+
+                    {/* WHATSAPP ALERTS SIMULATOR (SLIDES DOWN FROM TOP RIGHT) */}
+                    {showWhatsAppAlert && (
+                        <div className="fixed top-24 right-4 z-50 max-w-sm w-full bg-white border border-border-gray shadow-ios-alert rounded-2xl overflow-hidden fade-in border-l-4 border-emerald-500">
+                            <div className="bg-emerald-50/50 p-3 flex justify-between items-center border-b border-border-gray">
+                                <div className="flex items-center gap-2">
+                                    <Icons.WhatsApp />
+                                    <span className="text-xs font-bold text-emerald-800 tracking-wider">WHATSAPP GATEWAY (LIVE)</span>
+                                </div>
+                                <button onClick={() => setShowWhatsAppAlert(false)} className="text-slate-400 hover:text-slate-600">
+                                    <Icons.Close />
+                                </button>
+                            </div>
+                            <div className="p-4 bg-white space-y-3">
+                                <div className="bg-emerald-50/30 p-3 rounded-lg border border-emerald-100">
+                                    <p className="text-xs font-sans text-emerald-950 whitespace-pre-line leading-relaxed">
+                                        {formatWhatsAppMessage(whatsAppMessage)}
+                                    </p>
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            triggerToast('Panggilan darurat tersimulasi dikirim ke kontak keluarga.');
+                                            setShowWhatsAppAlert(false);
+                                        }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition"
+                                    >
+                                        Konfirmasi Respon
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODALS GATEWAY */}
+                    {modalType === 'login' && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <form onSubmit={handleLogin} className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-border-gray relative fade-in">
+                                <button type="button" onClick={() => setModalType(null)} className="absolute top-4 right-4 text-secondary-text hover:text-dark-text">
+                                    <Icons.Close />
+                                </button>
+                                <div className="flex flex-col items-center text-center mb-6">
+                                    <div className="p-3.5 bg-soft-mint rounded-full mb-3 text-primary-teal">
+                                        <Icons.UserCircle className="w-10 h-10" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-dark-text">Akses Portal PANDA</h3>
+                                    <p className="text-xs text-secondary-text mt-1">Gunakan kredensial pengelola atau dokter spesialis penanggung jawab pasien</p>
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-dark-text uppercase tracking-wider block mb-1">Surel Institusi / Caregiver</label>
+                                        <input 
+                                            type="email" 
+                                            required 
+                                            value={loginEmail}
+                                            onChange={(e) => setLoginEmail(e.target.value)}
+                                            placeholder="contoh: dr.budi@rumahsakit.id" 
+                                            className="w-full border border-border-gray rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-teal/40 transition" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-dark-text uppercase tracking-wider block mb-1">Kata Sandi</label>
+                                        <input 
+                                            type="password" 
+                                            required 
+                                            value={loginPassword}
+                                            onChange={(e) => setLoginPassword(e.target.value)}
+                                            placeholder="••••••••" 
+                                            className="w-full border border-border-gray rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-teal/40 transition" 
+                                        />
+                                    </div>
+                                    <button type="submit" className="w-full bg-primary-teal hover:bg-deep-teal text-white py-3.5 rounded-xl font-bold text-sm transition mt-2">
+                                        Masuk ke Dashboard
+                                    </button>
+                                </div>
+                                <div className="text-center mt-4">
+                                    <p className="text-[11px] text-gray-400">Untuk demo klinis, Anda dapat mengisi email & password bebas untuk mengakses dashboard caregiver profesional.</p>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    {modalType === 'register' && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-border-gray relative fade-in">
+                                <button onClick={() => setModalType(null)} className="absolute top-4 right-4 text-secondary-text hover:text-dark-text">
+                                    <Icons.Close />
+                                </button>
+                                <div className="flex flex-col items-center text-center mb-6">
+                                    <div className="p-3.5 bg-soft-mint rounded-full mb-3">
+                                        <Icons.PandaLogo className="w-10 h-10 text-primary-teal" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-dark-text">Pendaftaran Institusi & Keluarga</h3>
+                                    <p className="text-xs text-secondary-text mt-1">Integrasikan ekosistem ruang rawat Anda dengan analitik PANDA</p>
+                                </div>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button onClick={() => { setModalType('login'); triggerToast('Mode Pendaftaran Personal Terpilih.'); }} className="border border-border-gray hover:border-primary-teal p-4 rounded-xl text-center font-bold text-xs transition">
+                                            Keluarga / Personal
+                                        </button>
+                                        <button onClick={() => { setModalType('login'); triggerToast('Mode Pendaftaran Klinik Terpilih.'); }} className="border border-border-gray hover:border-primary-teal p-4 rounded-xl text-center font-bold text-xs transition">
+                                            Klinik / Rumah Sakit
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-center text-secondary-text">Silakan gunakan salah satu metode pendaftaran atau hubungi departemen komersialisasi kami di bawah.</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* NAVBAR */}
+                    <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-border-gray transition-all">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between h-20 items-center">
+                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('landing')}>
+                                    <Icons.PandaLogo />
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-extrabold text-2xl tracking-wider text-primary-teal">PANDA</span>
+                                            <span className="text-[10px] bg-primary-teal/10 text-primary-teal font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">Enterprise</span>
+                                        </div>
+                                        <span className="text-[9px] text-secondary-text tracking-widest block font-medium uppercase">Patient Ambient Intelligence</span>
+                                    </div>
+                                </div>
+                                
+                                {/* Desktop Menu */}
+                                <div className="hidden lg:flex items-center gap-8">
+                                    <a href="#masalah" className="text-sm font-semibold text-secondary-text hover:text-primary-teal transition">Tantangan Klinis</a>
+                                    <a href="#solusi" className="text-sm font-semibold text-secondary-text hover:text-primary-teal transition">Platform</a>
+                                    <a href="#fitur" className="text-sm font-semibold text-secondary-text hover:text-primary-teal transition">Fitur Utama</a>
+                                    <a href="#demo" className="text-sm font-semibold text-secondary-text hover:text-primary-teal transition">Live Demo</a>
+                                    <a href="#paket" className="text-sm font-semibold text-secondary-text hover:text-primary-teal transition">Layanan</a>
+                                    <a href="#tim" className="text-sm font-semibold text-secondary-text hover:text-primary-teal transition">Mitra Kami</a>
+                                </div>
+
+                                {/* User session conditional UI */}
+                                <div className="flex items-center gap-3">
+                                    {userSession ? (
+                                        <div className="flex items-center gap-3">
+                                            <div className="hidden sm:flex flex-col items-end">
+                                                <span className="text-xs font-bold text-dark-text">{userSession.name}</span>
+                                                <span className="text-[10px] text-primary-teal font-medium">{userSession.role}</span>
+                                            </div>
+                                            <button 
+                                                onClick={handleLogout}
+                                                className="text-xs bg-slate-100 hover:bg-slate-200 text-dark-text font-bold px-4 py-2.5 rounded-xl transition"
+                                            >
+                                                Keluar
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                onClick={() => setModalType('login')}
+                                                className="text-sm font-semibold text-secondary-text hover:text-primary-teal px-4 py-2 rounded-lg transition"
+                                            >
+                                                Masuk
+                                            </button>
+                                            <button 
+                                                onClick={() => setModalType('register')}
+                                                className="text-sm font-semibold text-primary-teal bg-soft-mint border border-primary-teal/20 hover:bg-emerald-50 px-4 py-2.5 rounded-xl transition"
+                                            >
+                                                Daftar Layanan
+                                            </button>
+                                        </div>
+                                    )}
+                                    <button 
+                                        onClick={() => setView(view === 'landing' ? 'demo' : 'landing')}
+                                        className="bg-primary-teal hover:bg-deep-teal text-white text-sm font-bold px-5 py-2.5 rounded-xl transition shadow-md shrink-0"
+                                    >
+                                        {view === 'landing' ? 'Buka Demo App' : 'Kembali'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* MAIN VIEW CONTROLLER */}
+                    {view === 'landing' ? (
+                        <div>
+                            {}
+                            <header className="relative pt-12 pb-20 md:py-28 bg-gradient-to-b from-white via-bg-main to-white overflow-hidden">
+                                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                                    <div className="lg:col-span-6 flex flex-col justify-center space-y-8">
+                                        <div className="inline-flex items-center gap-2 bg-soft-mint px-4 py-2 rounded-full border border-primary-teal/10 w-fit">
+                                            <span className="flex h-2 w-2 relative">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-accent opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-accent"></span>
+                                            </span>
+                                            <span className="text-xs font-bold text-primary-teal">Health-as-a-Service (HaaS) Patient Ecosystem</span>
+                                        </div>
+                                        
+                                        <div className="space-y-4">
+                                            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-dark-text tracking-tight leading-tight">
+                                                Monitoring Pasca-Stroke <br/>
+                                                <span className="text-primary-teal relative inline-block">
+                                                    Lebih Tenang, Terukur,
+                                                </span><br/>
+                                                dan Berbasis Data.
+                                            </h1>
+                                            <p className="text-lg text-secondary-text font-normal max-w-xl leading-relaxed">
+                                                PANDA mendeteksi anomali lingkungan, pola istirahat, dan risiko darurat di rumah pasien pasca-stroke menggunakan sensor pintar ambient dan kecerdasan buatan.
+                                            </p>
+                                        </div>
+
+                                        <div className="flex flex-col sm:flex-row gap-4">
+                                            <button 
+                                                onClick={() => setView('demo')}
+                                                className="bg-primary-teal hover:bg-deep-teal text-white px-8 py-4 rounded-xl font-bold shadow-hover-premium transition text-center"
+                                            >
+                                                Buka Aplikasi Demo Dashboard
+                                            </button>
+                                            <a 
+                                                href="#masalah"
+                                                className="border border-border-gray bg-white hover:bg-gray-50 text-dark-text px-8 py-4 rounded-xl font-bold transition text-center"
+                                            >
+                                                Pelajari Mekanisme Klinis
+                                            </a>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-4 text-[10px] text-gray-400 font-bold tracking-wider uppercase">
+                                            <span>✓ Live Sensor Feed Sandbox</span>
+                                            <span>✓ Automated WhatsApp Alerter</span>
+                                            <span>✓ Multi-patient Clinical Tracking</span>
+                                        </div>
+                                        
+                                        <div className="border-l-4 border-emerald-accent pl-4 py-1.5 italic text-sm text-secondary-text">
+                                            “Karena Risiko Senyap Perlu Didengar”
+                                        </div>
+                                    </div>
+
+                                    {/* MOCKUP DASHBOARD (HERO VISUAL RIGHT SIDE) */}
+                                    <div className="lg:col-span-6 relative">
+                                        <div className="absolute inset-0 bg-gradient-to-tr from-primary-teal/5 to-emerald-accent/5 rounded-3xl -m-4 blur-2xl"></div>
+                                        <div className="relative bg-white border border-border-gray rounded-3xl p-6 shadow-2xl space-y-6">
+                                            <div className="flex justify-between items-center border-b border-border-gray pb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-accent animate-radar"></div>
+                                                    <span className="text-xs font-bold text-secondary-text uppercase tracking-wider">PANDA AMBIENT HUB v2.1</span>
+                                                </div>
+                                                <span className="text-[10px] bg-primary-teal/10 text-primary-teal font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">LIVE FEED</span>
+                                            </div>
+
+                                            {/* Big Patient Status Card */}
+                                            <div className="bg-emerald-50 border border-emerald-200/60 rounded-2xl p-5 flex items-center justify-between">
+                                                <div>
+                                                    <span className="text-xs text-emerald-800 font-bold tracking-widest uppercase">Klasifikasi Sinyal Saat Ini</span>
+                                                    <h3 className="text-3xl font-extrabold text-emerald-950 mt-1">AMAN</h3>
+                                                    <p className="text-xs text-emerald-800 mt-1">Parameter ambient berada di batas normal.</p>
+                                                </div>
+                                                <div className="bg-emerald-500 text-white rounded-full p-3.5 shadow-md">
+                                                    <Icons.Heart />
+                                                </div>
+                                            </div>
+
+                                            {/* Metrics Grid */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="border border-border-gray rounded-2xl p-4 bg-bg-main">
+                                                    <span className="text-[10px] text-secondary-text font-bold block uppercase tracking-wider">Suhu Ruang</span>
+                                                    <div className="flex items-baseline gap-1 mt-1">
+                                                        <span className="text-2xl font-black text-dark-text">26.4°C</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-emerald-600 font-bold block mt-1">✓ Rentang Optimal (24-28°C)</span>
+                                                </div>
+                                                <div className="border border-border-gray rounded-2xl p-4 bg-bg-main">
+                                                    <span className="text-[10px] text-secondary-text font-bold block uppercase tracking-wider">Kelembaban</span>
+                                                    <div className="flex items-baseline gap-1 mt-1">
+                                                        <span className="text-2xl font-black text-dark-text">58%</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-emerald-600 font-bold block mt-1">✓ Kelembaban Stabil</span>
+                                                </div>
+                                                <div className="border border-border-gray rounded-2xl p-4 bg-bg-main">
+                                                    <span className="text-[10px] text-secondary-text font-bold block uppercase tracking-wider">Aktivitas Gerak</span>
+                                                    <div className="flex items-baseline gap-1 mt-1">
+                                                        <span className="text-2xl font-black text-dark-text">Normal</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-secondary-text block mt-1">Pasien beristirahat tenang</span>
+                                                </div>
+                                                <div className="border border-border-gray rounded-2xl p-4 bg-bg-main">
+                                                    <span className="text-[10px] text-secondary-text font-bold block uppercase tracking-wider">Pencahayaan</span>
+                                                    <div className="flex items-baseline gap-1 mt-1">
+                                                        <span className="text-2xl font-black text-dark-text">Optimal</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-emerald-600 font-bold block mt-1">Mendukung Siklus Tidur</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </header>
+
+                            {}
+                            {/* PROBLEM SECTION */}
+                            <section id="masalah" className="py-20 md:py-28 bg-white border-y border-border-gray">
+                                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                    <div className="text-center max-w-3xl mx-auto mb-16">
+                                        <span className="text-xs font-bold text-primary-teal uppercase tracking-widest block mb-2">TANTANGAN MEDIS PASCA-STROKE</span>
+                                        <h2 className="text-3xl sm:text-4xl font-extrabold text-dark-text tracking-tight">
+                                            Risiko Pasca-Stroke Sering Terjadi Secara Senyap.
+                                        </h2>
+                                        <p className="text-secondary-text mt-4">
+                                            Fase rawat jalan di rumah merupakan salah satu periode paling kritis dengan berbagai kendala pengawasan medis.
+                                        </p>
+                                    </div>
+
+                                    {/* Pain Points Grid */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+                                        <div className="bg-bg-main border border-border-gray rounded-2xl p-8 hover:shadow-soft-premium transition-all duration-300">
+                                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-border-gray flex items-center justify-center mb-6">
+                                                <span className="text-primary-teal font-extrabold text-lg">01</span>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-dark-text mb-3">Pemulihan Jangka Panjang</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Pasien memerlukan pengawasan ketat pasca-perawatan intensif di ICU, namun tim medis rumah sakit tidak dapat mendampingi selama 24 jam sehari di rumah.
+                                            </p>
+                                        </div>
+
+                                        <div className="bg-bg-main border border-border-gray rounded-2xl p-8 hover:shadow-soft-premium transition-all duration-300">
+                                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-border-gray flex items-center justify-center mb-6">
+                                                <span className="text-primary-teal font-extrabold text-lg">02</span>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-dark-text mb-3">Keterbatasan Caregiver</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Anggota keluarga non-medis sering kesulitan mendeteksi penurunan kondisi kenyamanan pasien atau gejala dehidrasi dan kecemasan akibat temperatur ekstrim.
+                                            </p>
+                                        </div>
+
+                                        <div className="bg-bg-main border border-border-gray rounded-2xl p-8 hover:shadow-soft-premium transition-all duration-300">
+                                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-border-gray flex items-center justify-center mb-6">
+                                                <span className="text-primary-teal font-extrabold text-lg">03</span>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-dark-text mb-3">Gangguan Komunikasi</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Gejala afasia (gangguan bicara) seringkali menghalangi pasien pasca-stroke untuk menyampaikan rasa tidak nyaman, sakit, atau suhu kamar yang terlalu panas.
+                                            </p>
+                                        </div>
+
+                                        <div className="bg-bg-main border border-border-gray rounded-2xl p-8 hover:shadow-soft-premium transition-all duration-300">
+                                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-border-gray flex items-center justify-center mb-6">
+                                                <span className="text-primary-teal font-extrabold text-lg">04</span>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-dark-text mb-3">Pola Pengawasan Inkonsisten</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Memantau pasien di jam malam secara konvensional melelahkan fisik pengawas, menyisakan celah kelalaian di saat darurat atau henti napas tidak disadari.
+                                            </p>
+                                        </div>
+
+                                        <div className="bg-bg-main border border-border-gray rounded-2xl p-8 hover:shadow-soft-premium transition-all duration-300">
+                                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-border-gray flex items-center justify-center mb-6">
+                                                <span className="text-primary-teal font-extrabold text-lg">05</span>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-dark-text mb-3">Biaya Alat Medis Tinggi</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Penyewaan instrumen ICU portabel di rumah memerlukan anggaran hingga puluhan juta rupiah, sulit dijangkau bagi masyarakat luas.
+                                            </p>
+                                        </div>
+
+                                        {/* Direct dynamic solution redirect panel */}
+                                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 flex flex-col justify-between">
+                                            <div>
+                                                <h4 className="text-emerald-950 font-bold mb-2">Jawaban Teknologi PANDA</h4>
+                                                <p className="text-xs text-emerald-800 leading-relaxed">
+                                                    Kami hadir sebagai solusi jembatan pengawasan klinis ambient yang efisien, canggih, dan ramah biaya keluarga.
+                                                </p>
+                                            </div>
+                                            <button 
+                                                onClick={() => setView('demo')}
+                                                className="w-full bg-primary-teal hover:bg-deep-teal text-white py-3 rounded-xl font-bold text-xs mt-4 transition"
+                                            >
+                                                Uji Coba Hub Sandbox →
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* QUOTE BOX */}
+                                    <div className="bg-teal-50 border-l-4 border-primary-teal rounded-r-2xl p-8 max-w-4xl mx-auto shadow-sm">
+                                        <p className="text-base sm:text-lg font-medium text-teal-950 italic">
+                                            “Pembeda utama pemulihan pasca-stroke yang sukses adalah lingkungan tinggal yang terjaga dengan minim distraksi atau temperatur yang stabil demi menjaga parameter saraf tetap terkendali.”
+                                        </p>
+                                        <div className="mt-4 flex items-center gap-3">
+                                            <div className="h-0.5 w-6 bg-primary-teal"></div>
+                                            <span className="text-xs font-bold text-primary-teal tracking-widest uppercase">Spesialis Kedokteran Saraf Serebrovaskular</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {}
+                            {/* SOLUTION SECTION */}
+                            <section id="solusi" className="py-20 md:py-28 bg-bg-main">
+                                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                    <div className="text-center max-w-3xl mx-auto mb-16">
+                                        <span className="text-xs font-bold text-primary-teal uppercase tracking-widest block mb-2">STRUKTUR DETEKSI PLATFORM</span>
+                                        <h2 className="text-3xl sm:text-4xl font-extrabold text-dark-text tracking-tight">
+                                            Mengubah Analisis Ambient Menjadi Sinyal Medis Sederhana.
+                                        </h2>
+                                        <p className="text-secondary-text mt-4">
+                                            PANDA memproses telemetry sensor cerdas lewat algoritma AI terlatih untuk menghasilkan status kenyamanan instan bagi keluarga.
+                                        </p>
+                                    </div>
+
+                                    {/* Flowchart Visual */}
+                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-16 items-center">
+                                        <div className="bg-white border border-border-gray p-6 rounded-2xl shadow-sm text-center flex flex-col items-center">
+                                            <div className="p-3 bg-soft-mint rounded-xl text-primary-teal mb-4">
+                                                <Icons.Activity />
+                                            </div>
+                                            <h4 className="font-bold text-sm text-dark-text mb-1">1. Ambient Sensors</h4>
+                                            <p className="text-[11px] text-secondary-text">Monitoring Suhu, Kelembaban, & Gerak Mikro</p>
+                                        </div>
+                                        <div className="text-center text-primary-teal hidden md:block">
+                                            <Icons.ChevronRight />
+                                        </div>
+                                        <div className="bg-white border border-border-gray p-6 rounded-2xl shadow-sm text-center flex flex-col items-center">
+                                            <div className="p-3 bg-soft-mint rounded-xl text-primary-teal mb-4">
+                                                <Icons.Shield />
+                                            </div>
+                                            <h4 className="font-bold text-sm text-dark-text mb-1">2. AI Logic Parser</h4>
+                                            <p className="text-[11px] text-secondary-text">Deteksi Anomali & Risiko Kardiovaskular</p>
+                                        </div>
+                                        <div className="text-center text-primary-teal hidden md:block">
+                                            <Icons.ChevronRight />
+                                        </div>
+                                        <div className="bg-white border border-border-gray p-6 rounded-2xl shadow-sm text-center flex flex-col items-center">
+                                            <div className="p-3 bg-soft-mint rounded-xl text-primary-teal mb-4">
+                                                <Icons.Chart />
+                                            </div>
+                                            <h4 className="font-bold text-sm text-dark-text mb-1">3. Caregiver Alert</h4>
+                                            <p className="text-[11px] text-secondary-text">Keluaran Status Visual & Push Alert WhatsApp</p>
+                                        </div>
+                                    </div>
+
+                                    {/* High Definition Status Definition */}
+                                    <div className="bg-white border border-border-gray rounded-3xl p-8 lg:p-12 shadow-sm max-w-5xl mx-auto">
+                                        <h3 className="text-xl font-bold text-dark-text text-center mb-8">
+                                            Standarisasi Klasifikasi Status Rawat PANDA
+                                        </h3>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="border border-emerald-200 bg-emerald-50/50 rounded-2xl p-6 text-center">
+                                                <span className="bg-emerald-500 text-white font-bold text-xs px-4 py-1.5 rounded-full inline-block mb-4 uppercase tracking-wider">AMAN</span>
+                                                <h4 className="font-bold text-emerald-950 mb-2">Kondisi Fisiologis Baik</h4>
+                                                <p className="text-xs text-emerald-800 leading-relaxed">
+                                                    Suhu AC kamar ideal (24-27°C), kelembaban tepat, pencahayaan redup terkendali, dan respirasi gerak pasien teratur.
+                                                </p>
+                                            </div>
+
+                                            <div className="border border-warning-amber/30 bg-amber-50/50 rounded-2xl p-6 text-center">
+                                                <span className="bg-warning-amber text-dark-text font-bold text-xs px-4 py-1.5 rounded-full inline-block mb-4 uppercase tracking-wider">GELISAH</span>
+                                                <h4 className="font-bold text-amber-950 mb-2">Potensi Hipertermia / Nyeri</h4>
+                                                <p className="text-xs text-amber-800 leading-relaxed">
+                                                    Suhu ruangan naik di atas batas nyaman atau gerakan motorik pasien berlebih akibat kecemasan tidur atau rasa sakit.
+                                                </p>
+                                            </div>
+
+                                            <div className="border border-danger-red/30 bg-red-50/50 rounded-2xl p-6 text-center">
+                                                <span className="bg-danger-red text-white font-bold text-xs px-4 py-1.5 rounded-full inline-block mb-4 uppercase tracking-wider">BAHAYA</span>
+                                                <h4 className="font-bold text-red-950 mb-2">Indikasi Darurat Medis</h4>
+                                                <p className="text-xs text-red-800 leading-relaxed">
+                                                    Anomali berupa sensor akselerometer mendeteksi benturan jatuh, tiadanya gerak fisik respiratorik, atau suhu ruangan terlalu ekstrem.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {}
+                            {/* FEATURES SECTION */}
+                            <section id="fitur" className="py-20 md:py-28 bg-white border-y border-border-gray">
+                                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                    <div className="text-center max-w-3xl mx-auto mb-20">
+                                        <span className="text-xs font-bold text-primary-teal uppercase tracking-widest block mb-2">KOMPETENSI TEKNOLOGI</span>
+                                        <h2 className="text-3xl sm:text-4xl font-extrabold text-dark-text tracking-tight">
+                                            Fitur Unggulan Ekosistem PANDA
+                                        </h2>
+                                        <p className="text-secondary-text mt-4">
+                                            Dikembangkan untuk standardisasi klinis terbaik guna menyajikan pemantauan jarak jauh yang andal.
+                                        </p>
+                                    </div>
+
+                                    {/* Features Cards Grid */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                        <div className="border border-border-gray p-8 rounded-3xl bg-white hover:border-primary-teal/30 hover:shadow-hover-premium transition-all duration-300">
+                                            <div className="p-3 bg-soft-mint text-primary-teal rounded-2xl w-fit mb-6">
+                                                <Icons.Activity />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text mb-3">Multi-Sensor Telemetry</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Mengintegrasikan pembacaan waktu nyata sensor temperatur, kelembaban, intensitas lux cahaya, serta akselerometer gerak presisi tinggi.
+                                            </p>
+                                        </div>
+
+                                        <div className="border border-border-gray p-8 rounded-3xl bg-white hover:border-primary-teal/30 hover:shadow-hover-premium transition-all duration-300">
+                                            <div className="p-3 bg-soft-mint text-primary-teal rounded-2xl w-fit mb-6">
+                                                <Icons.Shield />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text mb-3">AI Ambient Classifier</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Logika kalkulasi cerdas yang mengonversi tren anomali cuaca mikro di sekitar tempat tidur menjadi tingkat ancaman kenyamanan serebrovaskular.
+                                            </p>
+                                        </div>
+
+                                        <div className="border border-border-gray p-8 rounded-3xl bg-white hover:border-primary-teal/30 hover:shadow-hover-premium transition-all duration-300">
+                                            <div className="p-3 bg-soft-mint text-primary-teal rounded-2xl w-fit mb-6">
+                                                <Icons.Chart />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text mb-3">Professional Dashboard</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Antarmuka modern, intuitif, dan responsif. Memudahkan pemantauan riwayat tren klinis secara langsung baik dari ponsel maupun komputer tablet.
+                                            </p>
+                                        </div>
+
+                                        <div className="border border-border-gray p-8 rounded-3xl bg-white hover:border-primary-teal/30 hover:shadow-hover-premium transition-all duration-300">
+                                            <div className="p-3 bg-soft-mint text-primary-teal rounded-2xl w-fit mb-6">
+                                                <Icons.Bell />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text mb-3">Instant WhatsApp Gateway</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Pengiriman notifikasi darurat langsung ke perangkat WhatsApp keluarga saat parameter kritis terlampaui, lengkap dengan panduan penanganan awal.
+                                            </p>
+                                        </div>
+
+                                        <div className="border border-border-gray p-8 rounded-3xl bg-white hover:border-primary-teal/30 hover:shadow-hover-premium transition-all duration-300">
+                                            <div className="p-3 bg-soft-mint text-primary-teal rounded-2xl w-fit mb-6">
+                                                <Icons.Users />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text mb-3">Weekly Neurological Report</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Ekspor berkala laporan tren kenyamanan harian berformat PDF berkualitas tinggi, siap didiskusikan saat kontrol rutin ke dokter spesialis saraf.
+                                            </p>
+                                        </div>
+
+                                        <div className="border border-border-gray p-8 rounded-3xl bg-white hover:border-primary-teal/30 hover:shadow-hover-premium transition-all duration-300">
+                                            <div className="p-3 bg-soft-mint text-primary-teal rounded-2xl w-fit mb-6">
+                                                <Icons.Heart />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text mb-3">HaaS Business Model</h3>
+                                            <p className="text-sm text-secondary-text leading-relaxed">
+                                                Skema langganan ramah anggaran yang mencakup peminjaman modul sensor hardware fisik, pembaharuan firmware cloud, serta jaminan servis penuh.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {}
+                            {/* DEMO ENTRY SECTION */}
+                            <section id="demo" className="py-20 md:py-28 bg-bg-main">
+                                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                    <div className="text-center max-w-3xl mx-auto mb-16">
+                                        <span className="text-xs font-bold text-primary-teal uppercase tracking-widest block mb-2">INTERACTIVE SANDBOX</span>
+                                        <h2 className="text-3xl sm:text-4xl font-extrabold text-dark-text tracking-tight">
+                                            Akses Aplikasi Pemantau PANDA
+                                        </h2>
+                                        <p className="text-secondary-text mt-4">
+                                            Uji coba platform kontrol dalam skenario simulasi pasien rawat jalan rumah sakit.
+                                        </p>
+                                    </div>
+
+                                    <div className="bg-white border border-border-gray rounded-3xl p-8 lg:p-12 text-center max-w-4xl mx-auto shadow-sm">
+                                        <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-full text-xs font-semibold mb-6">
+                                            <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-radar"></span>
+                                            Uji Coba Sandbox Berbasis Data Sensor Dinamis
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-dark-text mb-4">Ingin menguji interaksi sensor ambient kami?</h3>
+                                        <p className="text-secondary-text text-sm max-w-xl mx-auto mb-8 leading-relaxed">
+                                            Gunakan pemantauan interaktif untuk mendemonstrasikan pergeseran parameter iklim mikro di kamar rawat pasien pasca-stroke, pemicu ambang batas bahaya, serta respons cepat dari portal pengawas.
+                                        </p>
+                                        <div className="flex flex-col sm:flex-row justify-center gap-4">
+                                            <button 
+                                                onClick={() => setView('demo')}
+                                                className="bg-primary-teal hover:bg-deep-teal text-white px-8 py-4 rounded-xl font-bold shadow-hover-premium transition"
+                                            >
+                                                Buka Aplikasi Dashboard Medis
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {}
+                            {/* BUSINESS PLANS SECTION */}
+                            <section id="paket" className="py-20 md:py-28 bg-white border-y border-border-gray">
+                                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                    <div className="text-center max-w-3xl mx-auto mb-20">
+                                        <span className="text-xs font-bold text-primary-teal uppercase tracking-widest block mb-2">INVESTASI KESEHATAN KELUARGA</span>
+                                        <h2 className="text-3xl sm:text-4xl font-extrabold text-dark-text tracking-tight">
+                                            Skema Layanan Fleksibel & Transparan
+                                        </h2>
+                                        <p className="text-secondary-text mt-4">
+                                            Layanan terpadu mencakup penyewaan perangkat keras modul sensor tanpa biaya pemasangan yang mahal di rumah.
+                                        </p>
+                                    </div>
+
+                                    {/* Pricing Cards */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                                        
+                                        {/* Tier 1 */}
+                                        <div className="border border-border-gray rounded-3xl p-8 bg-white relative flex flex-col justify-between">
+                                            <div>
+                                                <span className="text-xs font-bold text-secondary-text tracking-widest uppercase block mb-2">BASIC FAMILY</span>
+                                                <div className="flex items-baseline gap-1 mb-4">
+                                                    <span className="text-3xl font-extrabold text-dark-text">Rp49.000</span>
+                                                    <span className="text-xs text-secondary-text font-medium">/ bulan</span>
+                                                </div>
+                                                <p className="text-xs text-secondary-text mb-6">Cocok untuk pengawasan harian standar mandiri di rumah.</p>
+                                                <hr className="border-border-gray mb-6"/>
+                                                <ul className="space-y-3.5 text-xs text-dark-text font-medium">
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> 1x Modul PANDA Ambient Node</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Dashboard Akses Caregiver (1 Sesi Aktif)</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Alaram Audio Buzzer Kamar</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Laporan Kenyamanan Mingguan (PDF)</li>
+                                                </ul>
+                                            </div>
+                                            <button 
+                                                onClick={() => triggerToast('Layanan pre-order paket Basic Family telah tersimpan.')}
+                                                className="w-full mt-8 border border-border-gray hover:bg-gray-50 text-dark-text py-3.5 rounded-xl font-bold text-xs transition"
+                                            >
+                                                Pilih Paket Basic
+                                            </button>
+                                        </div>
+
+                                        {/* Tier 2 */}
+                                        <div className="border-2 border-primary-teal rounded-3xl p-8 bg-white relative flex flex-col justify-between shadow-hover-premium">
+                                            <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary-teal text-white text-[10px] tracking-wider font-extrabold px-4 py-1.5 rounded-full uppercase">PILIHAN UTAMA</span>
+                                            <div>
+                                                <span className="text-xs font-bold text-primary-teal tracking-widest uppercase block mb-2">FAMILY PLUS</span>
+                                                <div className="flex items-baseline gap-1 mb-4">
+                                                    <span className="text-3xl font-extrabold text-dark-text">Rp79.000</span>
+                                                    <span className="text-xs text-secondary-text font-medium">/ bulan</span>
+                                                </div>
+                                                <p className="text-xs text-secondary-text mb-6">Proteksi optimal keluarga dengan integrasi kecerdasan buatan & alert instan.</p>
+                                                <hr className="border-primary-teal/20 mb-6"/>
+                                                <ul className="space-y-3.5 text-xs text-dark-text font-medium">
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> 1x Modul Premium PANDA Ambient Hub</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Akses Multi-Caregiver (Hingga 5 Sesi Keluarga)</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Push WhatsApp Alert Emergency</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> AI Ambient Health Assessment</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Analisis Tidur & Kontrol Klinik Terpadu</li>
+                                                </ul>
+                                            </div>
+                                            <button 
+                                                onClick={() => triggerToast('Layanan pre-order paket Family Plus telah tersimpan.')}
+                                                className="w-full mt-8 bg-primary-teal hover:bg-deep-teal text-white py-3.5 rounded-xl font-bold text-xs transition"
+                                            >
+                                                Pilih Paket Family Plus
+                                            </button>
+                                        </div>
+
+                                        {/* Tier 3 */}
+                                        <div className="border border-border-gray rounded-3xl p-8 bg-white relative flex flex-col justify-between">
+                                            <div>
+                                                <span className="text-xs font-bold text-secondary-text tracking-widest uppercase block mb-2">CLINICAL SUITE</span>
+                                                <div className="flex items-baseline gap-1 mb-4">
+                                                    <span className="text-3xl font-extrabold text-dark-text">Rp299.000</span>
+                                                    <span className="text-xs text-secondary-text font-medium">/ bulan</span>
+                                                </div>
+                                                <p className="text-xs text-secondary-text mb-6">Integrasi rekam medis multi-pasien untuk klinik & panti pemulihan.</p>
+                                                <hr className="border-border-gray mb-6"/>
+                                                <ul className="space-y-3.5 text-xs text-dark-text font-medium">
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Monitoring Terpusat (Hingga 15 Kamar)</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> API Integration dengan SIM-RS Klinik</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Portal Manajemen Perawat & Dokter Jaga</li>
+                                                    <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> SLA Penanganan Teknis Prioritas 24/7</li>
+                                                </ul>
+                                            </div>
+                                            <button 
+                                                onClick={() => triggerToast('Hubungi perwakilan kemitraan kami untuk konsultasi integrasi sistem klinik.')}
+                                                className="w-full mt-8 border border-border-gray hover:bg-gray-50 text-dark-text py-3.5 rounded-xl font-bold text-xs transition"
+                                            >
+                                                Konsultasi Kemitraan Klinik
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {}
+                            {/* FOUNDERS SECTION */}
+                            <section id="tim" className="py-20 md:py-28 bg-white">
+                                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                    <div className="text-center max-w-3xl mx-auto mb-20">
+                                        <span className="text-xs font-bold text-primary-teal uppercase tracking-widest block mb-2">FOUNDING TEAM</span>
+                                        <h2 className="text-3xl sm:text-4xl font-extrabold text-dark-text tracking-tight">
+                                            Pengembang Utama PANDA
+                                        </h2>
+                                        <p className="text-secondary-text mt-4">
+                                            Kami mengkolaborasikan manajemen, rekayasa biomedis, serta inovasi digital untuk menghadirkan layanan terbaik.
+                                        </p>
+                                    </div>
+
+                                    {/* Team Cards */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                                        <div className="border border-border-gray bg-bg-main rounded-3xl p-8 text-center hover:shadow-soft-premium transition duration-300">
+                                            <div className="w-24 h-24 bg-gradient-to-tr from-primary-teal to-emerald-accent rounded-full mx-auto mb-6 flex items-center justify-center text-white text-3xl font-extrabold shadow-sm">
+                                                NC
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text">Nabila Choirunisa</h3>
+                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">Founder & Chief Technology Officer</span>
+                                            <p className="text-xs text-secondary-text leading-relaxed">
+                                                Memformulasikan arsitektur sistem cloud IoT, algoritma AI pendeteksi status ambient, serta pengembangan perangkat lunak portal medis terpusat.
+                                            </p>
+                                        </div>
+
+                                        <div className="border border-border-gray bg-bg-main rounded-3xl p-8 text-center hover:shadow-soft-premium transition duration-300">
+                                            <div className="w-24 h-24 bg-gradient-to-tr from-primary-teal to-emerald-accent rounded-full mx-auto mb-6 flex items-center justify-center text-white text-3xl font-extrabold shadow-sm">
+                                                FS
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text">Febriani M. Sitanggang</h3>
+                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">Co-Founder & Chief Financial Officer</span>
+                                            <p className="text-xs text-secondary-text leading-relaxed">
+                                                Merancang skema model bisnis komersial Health-as-a-Service, proyeksi investasi, analisis pengadaan hardware, dan efisiensi pengeluaran.
+                                            </p>
+                                        </div>
+
+                                        <div className="border border-border-gray bg-bg-main rounded-3xl p-8 text-center hover:shadow-soft-premium transition duration-300">
+                                            <div className="w-24 h-24 bg-gradient-to-tr from-primary-teal to-emerald-accent rounded-full mx-auto mb-6 flex items-center justify-center text-white text-3xl font-extrabold shadow-sm">
+                                                HS
+                                            </div>
+                                            <h3 className="text-lg font-bold text-dark-text">Halfi Syahdan Basith</h3>
+                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-wider block mt-1 mb-4">Co-Founder & Chief Marketing Officer</span>
+                                            <p className="text-xs text-secondary-text leading-relaxed">
+                                                Mengkoordinasi riset kebutuhan pasien klinis di lapangan, validasi pangsa pasar layanan kesehatan mandiri, dan kemitraan dengan klinik stroke nasional.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {}
+                            {/* FINAL STARTUP CTA */}
+                            <section className="py-20 md:py-24 bg-gradient-to-br from-primary-teal to-deep-teal text-white relative overflow-hidden">
+                                <div className="absolute inset-0 opacity-10 bg-grid-pattern"></div>
+                                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 space-y-6">
+                                    <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
+                                        Karena Risiko Senyap Perlu Didengar.
+                                    </h2>
+                                    <p className="text-base sm:text-lg text-emerald-100/90 max-w-2xl mx-auto font-light leading-relaxed">
+                                        Gabung bersama ribuan institusi medis dan keluarga di seluruh Indonesia untuk menghadirkan lingkungan penyembuhan terbaik di rumah.
+                                    </p>
+                                    <div className="pt-4 flex flex-col sm:flex-row justify-center gap-4">
+                                        <button 
+                                            onClick={() => setView('demo')}
+                                            className="bg-white text-primary-teal hover:bg-emerald-50 px-8 py-4 rounded-xl font-bold transition shadow-lg"
+                                        >
+                                            Uji Coba Demo Dashboard
+                                        </button>
+                                        <button 
+                                            onClick={() => setModalType('login')}
+                                            className="bg-primary-teal border border-teal-400/30 text-white hover:bg-teal-800 px-8 py-4 rounded-xl font-bold transition"
+                                        >
+                                            Akses Portal Profesional
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    ) : (
+                        
+                        /* ==================== REALISTIC MEDIC DEMO & APP VIEW ==================== */
+                        <div className="bg-bg-main min-h-screen flex flex-col justify-between">
+                            {/* Live Alert Sandbox Top Banner */}
+                            <div className="bg-slate-900 text-white py-3 px-4 sm:px-6 text-center text-xs font-bold flex flex-wrap justify-center items-center gap-2">
+                                <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider">SANDBOX HUB</span>
+                                <span>Gunakan simulator sensor di kolom kiri untuk melakukan anomali lingkungan atau pergerakan pada pasien terpilih.</span>
+                                <button 
+                                    onClick={() => setView('landing')} 
+                                    className="underline ml-2 text-emerald-400 hover:text-emerald-300 transition"
+                                >
+                                    ← Kembali ke Landing Page
+                                </button>
+                            </div>
+
+                            {/* Demo Grid Space */}
+                            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start flex-grow">
+                                
+                                {/* CONTROLLERS (LEFT) */}
+                                <div className="lg:col-span-4 bg-white border border-border-gray p-6 rounded-3xl shadow-sm space-y-6">
+                                    <div className="border-b border-border-gray pb-4">
+                                        <h3 className="font-bold text-dark-text text-lg">Ambient Device Emulator</h3>
+                                        <p className="text-xs text-secondary-text mt-1">Gunakan kontrol di bawah ini untuk mensimulasikan lingkungan fisik ruang tidur pasien.</p>
+                                    </div>
+
+                                    {/* Patient Switcher */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-dark-text block uppercase tracking-wider">Pilih Pasien Aktif</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {Object.values(PATIENTS_DATA).map((p) => (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => setActivePatient(p.id)}
+                                                    className={`text-center py-2.5 px-3 rounded-xl border text-xs font-bold transition ${
+                                                        activePatient === p.id 
+                                                            ? 'bg-primary-teal/15 border-primary-teal text-primary-teal' 
+                                                            : 'border-border-gray hover:bg-gray-50 text-secondary-text'
+                                                    }`}
+                                                >
+                                                    {p.name.split(' ')[1]}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Temperature emulation slider */}
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center text-xs font-bold text-dark-text">
+                                            <span>Suhu Kamar Rawat</span>
+                                            <span className={`font-mono ${suhu >= 33 || suhu <= 19 ? 'text-danger-red' : suhu >= 29 ? 'text-warning-amber' : 'text-emerald-accent'}`}>
+                                                {suhu} °C
+                                            </span>
+                                        </div>
+                                        <input 
+                                            type="range" 
+                                            min="15" 
+                                            max="38" 
+                                            step="0.1"
+                                            value={suhu} 
+                                            onChange={(e) => setSuhu(parseFloat(e.target.value))}
+                                            className="w-full accent-primary-teal"
+                                        />
+                                        <div className="flex justify-between text-[8px] text-gray-400 font-bold uppercase">
+                                            <span>Dingin (15°C)</span>
+                                            <span>Normal (25°C)</span>
+                                            <span>Panas (38°C)</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Humidity emulation slider */}
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center text-xs font-bold text-dark-text">
+                                            <span>Kelembaban Udara</span>
+                                            <span className={`font-mono ${kelembaban >= 72 || kelembaban <= 38 ? 'text-warning-amber' : 'text-emerald-accent'}`}>
+                                                {kelembaban} %
+                                            </span>
+                                        </div>
+                                        <input 
+                                            type="range" 
+                                            min="25" 
+                                            max="85" 
+                                            value={kelembaban} 
+                                            onChange={(e) => setKelembaban(parseInt(e.target.value))}
+                                            className="w-full accent-primary-teal"
+                                        />
+                                        <div className="flex justify-between text-[8px] text-gray-400 font-bold uppercase">
+                                            <span>Kering (25%)</span>
+                                            <span>Stabil (55%)</span>
+                                            <span>Lembab (85%)</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Physical Movement States */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-dark-text block uppercase tracking-wider">Status Gerak Pasien (Akselerometer)</label>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {[
+                                                { label: 'Normal / Istirahat Tenang', value: 'Normal' },
+                                                { label: 'Gelisah / Gerakan Motorik Berlebih', value: 'Gelisah / Aktif' },
+                                                { label: 'Anomali Benturan / Tanpa Gerak Lama', value: 'Jatuh / Diam Lama' }
+                                            ].map((opt) => (
+                                                <button
+                                                    key={opt.value}
+                                                    onClick={() => setGerakan(opt.value)}
+                                                    className={`text-left text-xs px-4 py-3 rounded-xl border font-bold transition ${
+                                                        gerakan === opt.value 
+                                                            ? 'bg-primary-teal/15 border-primary-teal text-primary-teal' 
+                                                            : 'border-border-gray hover:bg-gray-50 text-dark-text'
+                                                    }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Light Controls */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-dark-text block uppercase tracking-wider">Intensitas Cahaya Kamar</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {['Optimal', 'Terlalu Terang', 'Gelap Gulita'].map((opt) => (
+                                                <button
+                                                    key={opt}
+                                                    onClick={() => setCahaya(opt)}
+                                                    className={`text-xs py-2 px-1 rounded-xl border font-bold text-center transition ${
+                                                        cahaya === opt 
+                                                            ? 'bg-primary-teal/15 border-primary-teal text-primary-teal' 
+                                                            : 'border-border-gray hover:bg-gray-50 text-secondary-text'
+                                                    }`}
+                                                >
+                                                    {opt}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Preset clinical shortcuts for rapid demo */}
+                                    <div className="bg-slate-50 rounded-2xl p-4 border border-border-gray space-y-2">
+                                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">Aksi Cepat Demo</span>
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                            <button 
+                                                onClick={() => { setSuhu(PATIENTS_DATA[activePatient].baselineTemp); setKelembaban(PATIENTS_DATA[activePatient].baselineHumid); setGerakan('Normal'); setCahaya('Optimal'); }}
+                                                className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-2 rounded-lg transition"
+                                            >
+                                                Skenario Aman
+                                            </button>
+                                            <button 
+                                                onClick={() => { setSuhu(30.8); setKelembaban(76); setGerakan('Gelisah / Aktif'); setCahaya('Terlalu Terang'); }}
+                                                className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold py-2 rounded-lg transition"
+                                            >
+                                                Skenario Gelisah
+                                            </button>
+                                            <button 
+                                                onClick={() => { setSuhu(24.5); setKelembaban(52); setGerakan('Jatuh / Diam Lama'); setCahaya('Optimal'); }}
+                                                className="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold py-2 rounded-lg transition"
+                                            >
+                                                Skenario Jatuh
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* PREMIUM CAREGIVER HUB DASHBOARD (RIGHT) */}
+                                <div className="lg:col-span-8 bg-white border border-border-gray rounded-3xl shadow-sm overflow-hidden flex flex-col">
+                                    
+                                    {/* App Header */}
+                                    <div className="p-6 bg-slate-50 border-b border-border-gray flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                        <div>
+                                            <span className="text-xs font-bold text-primary-teal uppercase tracking-widest">PANDA CAREGIVER CONSOLE v2.1</span>
+                                            <h2 className="text-xl font-bold text-dark-text mt-0.5">Pemantauan Pasien Rawat Jalan</h2>
+                                        </div>
+                                        
+                                        {/* Dynamic Active Patient Badge */}
+                                        <div className="bg-white border border-border-gray p-3.5 rounded-2xl flex items-center gap-3 shadow-sm shrink-0">
+                                            <div className="h-10 w-10 rounded-full bg-primary-teal/15 flex items-center justify-center font-bold text-primary-teal text-sm">
+                                                {PATIENTS_DATA[activePatient].name.split(' ').slice(-1)[0][0]}
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-bold text-dark-text">{PATIENTS_DATA[activePatient].name}</h4>
+                                                <p className="text-[10px] text-secondary-text">{PATIENTS_DATA[activePatient].age} · {PATIENTS_DATA[activePatient].diagnosa}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 space-y-6">
+                                        {/* Status banner with dynamic styling from the derive function */}
+                                        <div className={`border-2 rounded-2xl p-6 transition-all duration-300 ${currentStatus.color}`}>
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+                                                <div>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-secondary-text">STATUS ANALITIS AI</span>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={`font-black text-2xl px-4 py-1 rounded-xl shadow-sm tracking-wide ${currentStatus.badgeColor}`}>
+                                                            {currentStatus.status}
+                                                        </span>
+                                                        <span className="flex h-3 w-3 relative">
+                                                            <span className="animate-radar absolute inline-flex h-full w-full rounded-full bg-emerald-accent opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-accent"></span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={() => triggerToast(`Laporan medis mingguan untuk ${PATIENTS_DATA[activePatient].name} siap diunduh.`)}
+                                                    className="bg-white text-dark-text border border-border-gray hover:bg-gray-50 px-4 py-2.5 rounded-xl font-bold text-xs transition shrink-0"
+                                                >
+                                                    Ekspor PDF Klinis
+                                                </button>
+                                            </div>
+                                            <p className="text-xs font-semibold leading-relaxed text-slate-800">
+                                                {currentStatus.desc}
+                                            </p>
+                                        </div>
+
+                                        {/* Active metrics grid */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                            <div className="border border-border-gray rounded-2xl p-4 bg-bg-main">
+                                                <span className="text-[10px] font-bold text-secondary-text uppercase tracking-wider block">Suhu Kamar</span>
+                                                <span className="text-2xl font-black text-dark-text block mt-1">{suhu} °C</span>
+                                                {suhu >= 33 || suhu <= 19 ? (
+                                                    <span className="text-[9px] text-danger-red font-bold block mt-1.5">✕ Kritis Ekstrem</span>
+                                                ) : suhu >= 29 ? (
+                                                    <span className="text-[9px] text-warning-amber font-bold block mt-1.5">▲ Cenderung Panas</span>
+                                                ) : (
+                                                    <span className="text-[9px] text-emerald-600 font-bold block mt-1.5">✓ Rentang Optimal</span>
+                                                )}
+                                            </div>
+
+                                            <div className="border border-border-gray rounded-2xl p-4 bg-bg-main">
+                                                <span className="text-[10px] font-bold text-secondary-text uppercase tracking-wider block">Kelembaban</span>
+                                                <span className="text-2xl font-black text-dark-text block mt-1">{kelembaban} %</span>
+                                                {kelembaban >= 72 || kelembaban <= 38 ? (
+                                                    <span className="text-[9px] text-warning-amber font-bold block mt-1.5">▲ Di Luar Batas Ideal</span>
+                                                ) : (
+                                                    <span className="text-[9px] text-emerald-600 font-bold block mt-1.5">✓ Kelembaban Aman</span>
+                                                )}
+                                            </div>
+
+                                            <div className="border border-border-gray rounded-2xl p-4 bg-bg-main">
+                                                <span className="text-[10px] font-bold text-secondary-text uppercase tracking-wider block">Aktivitas Gerak</span>
+                                                <span className="text-base font-black text-dark-text block mt-2 truncate">{gerakan}</span>
+                                                <span className="text-[9px] text-secondary-text block mt-1.5">Pola Istirahat Pasien</span>
+                                            </div>
+
+                                            <div className="border border-border-gray rounded-2xl p-4 bg-bg-main">
+                                                <span className="text-[10px] font-bold text-secondary-text uppercase tracking-wider block">Pencahayaan</span>
+                                                <span className="text-base font-black text-dark-text block mt-2 truncate">{cahaya}</span>
+                                                <span className="text-[9px] text-secondary-text block mt-1.5">Lux Level</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Real-time fluctuating historical graph (Dynamic SVG curve mapping) */}
+                                        <div className="border border-border-gray p-5 rounded-2xl space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <h4 className="font-bold text-xs text-dark-text">Grafik Fluktuasi Suhu Kamar Pasien (6 Jam Terakhir)</h4>
+                                                    <p className="text-[10px] text-secondary-text">Data termonitor langsung oleh node PANDA Ambient</p>
+                                                </div>
+                                                <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded">Update Interval 4 Detik (Simulasi)</span>
+                                            </div>
+                                            
+                                            <div className="w-full h-32 relative bg-slate-50/70 rounded-xl overflow-hidden p-2 border border-slate-100">
+                                                {/* Line chart svg path */}
+                                                <svg className="w-full h-full" viewBox="0 0 100 30" preserveAspectRatio="none">
+                                                    <line x1="0" y1="10" x2="100" y2="10" stroke="#F1F5F9" strokeWidth="0.5" />
+                                                    <line x1="0" y1="20" x2="100" y2="20" stroke="#F1F5F9" strokeWidth="0.5" />
+                                                    
+                                                    {/* Generates curve coordinates programmatically from historicalTemp state */}
+                                                    <path 
+                                                        d={`M 0 ${(30 - (historicalTemp[0] - 15) * 1.5).toFixed(1)} 
+                                                            L 20 ${(30 - (historicalTemp[1] - 15) * 1.5).toFixed(1)} 
+                                                            L 40 ${(30 - (historicalTemp[2] - 15) * 1.5).toFixed(1)} 
+                                                            L 60 ${(30 - (historicalTemp[3] - 15) * 1.5).toFixed(1)} 
+                                                            L 80 ${(30 - (historicalTemp[4] - 15) * 1.5).toFixed(1)} 
+                                                            L 100 ${(30 - (historicalTemp[5] - 15) * 1.5).toFixed(1)}`} 
+                                                        fill="none" 
+                                                        stroke="#0F766E" 
+                                                        strokeWidth="1.5" 
+                                                    />
+                                                </svg>
+                                                <div className="absolute inset-x-2 bottom-1 flex justify-between text-[8px] text-gray-400 font-bold uppercase">
+                                                    <span>06:00</span>
+                                                    <span>08:00</span>
+                                                    <span>10:00</span>
+                                                    <span>12:00</span>
+                                                    <span>Sekarang ({suhu}°C)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Split view: Medical logs + medication checklist */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {/* Patient details card list */}
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <h4 className="font-bold text-xs text-dark-text">Jadwal Obat Harian</h4>
+                                                    <span className="text-[9px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded uppercase tracking-wider">Aktif</span>
+                                                </div>
+                                                <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar">
+                                                    {PATIENTS_DATA[activePatient].meds.map((med, idx) => (
+                                                        <div key={idx} className="p-3 rounded-xl border border-border-gray bg-white flex items-center justify-between text-xs font-semibold">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="h-2 w-2 rounded-full bg-primary-teal"></span>
+                                                                <span>{med}</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-emerald-600 font-bold">Terjadwal</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Quick Alert Log list */}
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <h4 className="font-bold text-xs text-dark-text">Riwayat Pemantauan Sistem</h4>
+                                                    <button 
+                                                        onClick={() => setAlerts([
+                                                            { id: Date.now(), time: '08:00', msg: 'Sistem diaktifkan kembali.', type: 'info' }
+                                                        ])}
+                                                        className="text-[10px] text-primary-teal hover:underline font-bold"
+                                                    >
+                                                        Bersihkan Log
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar">
+                                                    <div className="p-3 rounded-xl border border-border-gray bg-slate-50 flex items-start gap-3 text-xs">
+                                                        <span className="text-gray-400 font-bold">10:30</span>
+                                                        <p className="font-semibold text-slate-800 leading-relaxed">Suhu ruangan normal terdeteksi pada 26.4°C.</p>
+                                                    </div>
+                                                    <div className="p-3 rounded-xl border border-border-gray bg-slate-50 flex items-start gap-3 text-xs">
+                                                        <span className="text-gray-400 font-bold">08:15</span>
+                                                        <p className="font-semibold text-slate-800 leading-relaxed">Pasien bangun dengan pola gerakan stabil.</p>
+                                                    </div>
+                                                    <div className="p-3 rounded-xl border border-border-gray bg-slate-50 flex items-start gap-3 text-xs">
+                                                        <span className="text-gray-400 font-bold">07:00</span>
+                                                        <p className="font-semibold text-slate-800 leading-relaxed">Kondisi kenyamanan tidur malam pasien mencapai 94%.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                    
+                                    {/* Professional App Disclaimer footer */}
+                                    <div className="bg-slate-100 text-center py-3.5 text-[9px] text-gray-500 font-bold border-t border-border-gray uppercase tracking-wider">
+                                        ⚠️ PERNYATAAN KLINIS: PANDA ADALAH MEDIA PEMANTAU AMBIENT LINGKUNGAN, BUKAN PERANGKAT KELAS MEDIS INTENSIF MANDIRI.
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FOOTER */}
+                    <footer className="bg-white border-t border-border-gray py-12">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start mb-8">
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <Icons.PandaLogo />
+                                        <span className="font-extrabold text-xl tracking-wider text-primary-teal">PANDA</span>
+                                    </div>
+                                    <p className="text-xs text-secondary-text leading-relaxed">
+                                        Patient Ambient Notification & Danger Analysis.<br/>
+                                        Platform Health-as-a-Service (HaaS) berbasis IoT & AI untuk pemantauan lingkungan pasien pasca-stroke mandiri di rumah.
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <h4 className="font-bold text-xs text-dark-text uppercase tracking-widest">Akses & Layanan</h4>
+                                    <p className="text-xs text-secondary-text leading-relaxed">
+                                        Berlangganan Keluarga Pasien<br/>
+                                        Kemitraan Klinik Neurologi<br/>
+                                        Hubungi Kantor Komersial kami di Jember, Jawa Timur.
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <h4 className="font-bold text-xs text-dark-text uppercase tracking-widest">Kepatuhan Medis</h4>
+                                    <p className="text-xs text-secondary-text leading-relaxed">
+                                        PANDA dirancang sebagai perangkat pendamping caregiver non-medis untuk menilai kenyamanan ruang pasien dan bukan pengganti alat pemantauan organ vital intensif di ruang ICU.
+                                    </p>
+                                </div>
+                            </div>
+                            <hr className="border-border-gray mb-6"/>
+                            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-gray-400 font-semibold">
+                                <span>© 2026 PANDA - Patient Ambient Intelligence. Hak Cipta Dilindungi.</span>
+                                <span>Platform Pengawasan Pemulihan Stroke Indonesia</span>
+                            </div>
+                        </div>
+                    </footer>
+
+                </div>
+            );
+        }
+
+        // Render the React application
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
